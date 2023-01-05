@@ -29,6 +29,7 @@ import (
 
 const (
 	padding  = 3
+	paddingMiddle = 40
 	maxWidth = 80
 )
 
@@ -81,8 +82,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		m.elapsedTime = time.Since(m.startTime)
+		m.elapsedTime = m.elapsedTime.Round(m.elapsedTime)
 		m.seconds += 1
-		m.percent = float64(m.seconds) / 1500
+		m.percent = float64(m.seconds) / 120
 		if m.percent > 1.0 {
 			m.percent = 1.0
 			return m, tea.Println("Pomodoro Timer done!")
@@ -97,7 +99,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	pad := strings.Repeat(" ", padding)
+	padMiddle := strings.Repeat(" ", paddingMiddle)
 	return "\n" +
+		padMiddle + m.elapsedTime.Round(1*time.Second).String() + "\n\n" +
 		pad + m.progress.ViewAs(m.percent) + "\n\n" +
 		pad + helpStyle("Press ctrl+c or q to quit, Press ctrl+s or s to start. ") + "\n\n"
 }
