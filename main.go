@@ -28,16 +28,16 @@ import (
 )
 
 const (
-	padding  = 3
+	padding       = 3
 	paddingMiddle = 40
-	maxWidth = 80
+	maxWidth      = 80
 )
 
 var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
 func main() {
-	prog := progress.New(progress.WithScaledGradient("#FF7CCB", "#FDFF8C"))
-	if _, err := tea.NewProgram(model{progress: prog}).Run(); err != nil {
+	// prog := progress.New(progress.WithScaledGradient("#FF7CCB", "#FDFF8C"))
+	if _, err := tea.NewProgram(initialModel()).Run(); err != nil {
 		fmt.Println("Oh no!", err)
 		os.Exit(1)
 	}
@@ -46,15 +46,16 @@ func main() {
 type tickMsg time.Time
 
 type model struct {
-	percent     float64
-	progress    progress.Model
-	seconds     int
-	startTime   time.Time
-	elapsedTime time.Duration
+	percent        float64
+	progress       progress.Model
+	secondsPassed  int
+	startTime      time.Time
+	endTime        time.Time
+	timerRemaining time.Duration
+	timerDuration  time.Duration
 }
 
 func (m model) Init() tea.Cmd {
-	// return tickCmd()
 	return nil
 }
 
@@ -69,7 +70,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "ctrl+s", "s":
+			m.timerDuration = 1500
 			m.startTime = time.Now()
+			m.endTime = m.startTime.Add(m.timerDuration * time.Second)
 			return m, tickCmd()
 		}
 
@@ -77,14 +80,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress.Width = msg.Width - padding*2 - 4
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
+			m.timerRemaining = 0
 		}
 		return m, nil
 
 	case tickMsg:
-		m.elapsedTime = time.Since(m.startTime)
-		m.elapsedTime = m.elapsedTime.Round(m.elapsedTime)
-		m.seconds += 1
-		m.percent = float64(m.seconds) / 120
+		m.timerRemaining = time.Until(m.endTime).Round(1 * time.Second)
+		m.secondsPassed += 1
+		m.percent = float64(m.secondsPassed) / float64(m.timerDuration)
 		if m.percent > 1.0 {
 			m.percent = 1.0
 			return m, tea.Println("Pomodoro Timer done!")
@@ -101,7 +104,8 @@ func (m model) View() string {
 	pad := strings.Repeat(" ", padding)
 	padMiddle := strings.Repeat(" ", paddingMiddle)
 	return "\n" +
-		padMiddle + m.elapsedTime.Round(1*time.Second).String() + "\n\n" +
+		padMiddle + "\n\n" +
+		padMiddle + m.timerRemaining.String() + "\n\n" +
 		pad + m.progress.ViewAs(m.percent) + "\n\n" +
 		pad + helpStyle("Press ctrl+c or q to quit, Press ctrl+s or s to start. ") + "\n\n"
 }
@@ -110,4 +114,14 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
+}
+
+func initialModel() model {
+	prog := progress.New(progress.WithScaledGradient("#FF7CCB", "#FDFF8C"))
+	return model{
+		progress:       prog,
+		timerDuration:  120,
+		timerRemaining: 120,
+		percent:        0,
+	}
 }
